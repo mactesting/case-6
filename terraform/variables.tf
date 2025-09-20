@@ -13,7 +13,7 @@ variable "region" {
 variable "eks_cluster_name" {
   description = "Existing EKS cluster name in us-east-1"
   type        = string
-  default     = "eks2"
+  default     = "case8-eks"
 }
 
 variable "k8s_namespace" {

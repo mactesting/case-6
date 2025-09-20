@@ -83,60 +83,58 @@ data "aws_iam_policy_document" "codebuild_assume" {
     }
   }
 }
-
 resource "aws_iam_role" "codebuild" {
   name               = "${local.name}-codebuild-role"
   assume_role_policy = data.aws_iam_policy_document.codebuild_assume.json
 }
 
-# (For a fast demo, you can attach admin — not for prod)
-# resource "aws_iam_role_policy_attachment" "codebuild_admin" {
-#   role       = aws_iam_role.codebuild.name
-#   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-# }
-
-resource "aws_iam_role_policy" "codebuild_inline" {
-  name = "${local.name}-codebuild-policy"
-  role = aws_iam_role.codebuild.id
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # CloudWatch Logs
-      {
-        Effect: "Allow",
-        Action: ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents","logs:DescribeLogStreams"],
-        Resource: [
-          aws_cloudwatch_log_group.cb_build.arn,
-          "${aws_cloudwatch_log_group.cb_build.arn}:*",
-          aws_cloudwatch_log_group.cb_deploy.arn,
-          "${aws_cloudwatch_log_group.cb_deploy.arn}:*"
-        ]
-      },
-      # S3 artifacts (read/write by CodeBuild during pipeline)
-      {
-        Effect: "Allow",
-        Action: ["s3:PutObject","s3:GetObject","s3:GetObjectVersion","s3:GetBucketAcl","s3:GetBucketLocation","s3:ListBucket"],
-        Resource: [aws_s3_bucket.artifacts.arn, "${aws_s3_bucket.artifacts.arn}/*"]
-      },
-      # ECR push/pull + auth
-      {
-        Effect: "Allow",
-        Action: [
-          "ecr:GetAuthorizationToken","ecr:BatchGetImage","ecr:GetDownloadUrlForLayer",
-          "ecr:DescribeRepositories","ecr:InitiateLayerUpload","ecr:UploadLayerPart",
-          "ecr:CompleteLayerUpload","ecr:PutImage","ecr:BatchCheckLayerAvailability"
-        ],
-        Resource: "*"
-      },
-      # EKS describe (for update-kubeconfig)
-      {
-        Effect: "Allow",
-        Action: ["eks:DescribeCluster"],
-        Resource: "arn:aws:eks:us-east-1:${data.aws_caller_identity.current.account_id}:cluster/${local.eks_cluster}"
-      }
-    ]
-  })
+resource "aws_iam_role_policy_attachment" "codebuild_admin" {
+  role       = aws_iam_role.codebuild.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
+
+    # resource "aws_iam_role_policy" "codebuild_inline" {
+    #   name = "${local.name}-codebuild-policy"
+    #   role = aws_iam_role.codebuild.id
+    #   policy = jsonencode({
+    #     Version = "2012-10-17",
+    #     Statement = [
+    #       # CloudWatch Logs
+    #       {
+    #         Effect: "Allow",
+    #         Action: ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents","logs:DescribeLogStreams"],
+    #         Resource: [
+    #           aws_cloudwatch_log_group.cb_build.arn,
+    #           "${aws_cloudwatch_log_group.cb_build.arn}:*",
+    #           aws_cloudwatch_log_group.cb_deploy.arn,
+    #           "${aws_cloudwatch_log_group.cb_deploy.arn}:*"
+    #         ]
+    #       },
+    #       # S3 artifacts (read/write by CodeBuild during pipeline)
+    #       {
+    #         Effect: "Allow",
+    #         Action: ["s3:PutObject","s3:GetObject","s3:GetObjectVersion","s3:GetBucketAcl","s3:GetBucketLocation","s3:ListBucket"],
+    #         Resource: [aws_s3_bucket.artifacts.arn, "${aws_s3_bucket.artifacts.arn}/*"]
+    #       },
+    #       # ECR push/pull + auth
+    #       {
+    #         Effect: "Allow",
+    #         Action: [
+    #           "ecr:GetAuthorizationToken","ecr:BatchGetImage","ecr:GetDownloadUrlForLayer",
+    #           "ecr:DescribeRepositories","ecr:InitiateLayerUpload","ecr:UploadLayerPart",
+    #           "ecr:CompleteLayerUpload","ecr:PutImage","ecr:BatchCheckLayerAvailability"
+    #         ],
+    #         Resource: "*"
+    #       },
+    #       # EKS describe (for update-kubeconfig)
+    #       {
+    #         Effect: "Allow",
+    #         Action: ["eks:DescribeCluster"],
+    #         Resource: "arn:aws:eks:us-east-1:${data.aws_caller_identity.current.account_id}:cluster/${local.eks_cluster}"
+    #       }
+    #     ]
+    #   })
+    # }
 
 ########################
 # IAM for CodePipeline
@@ -156,32 +154,9 @@ resource "aws_iam_role" "codepipeline" {
   assume_role_policy = data.aws_iam_policy_document.codepipeline_assume.json
 }
 
-resource "aws_iam_role_policy" "codepipeline_inline" {
-  name = "${local.name}-codepipeline-policy"
-  role = aws_iam_role.codepipeline.id
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      # S3 artifact store
-      {
-        Effect: "Allow",
-        Action: ["s3:PutObject","s3:GetObject","s3:GetObjectVersion","s3:DeleteObject","s3:ListBucket","s3:GetBucketLocation"],
-        Resource: [aws_s3_bucket.artifacts.arn, "${aws_s3_bucket.artifacts.arn}/*"]
-      },
-      # CodeBuild integrations
-      {
-        Effect: "Allow",
-        Action: ["codebuild:BatchGetBuilds","codebuild:StartBuild","codebuild:BatchGetProjects"],
-        Resource: "*"
-      },
-      # Use the GitHub CodeConnection
-      {
-        Effect: "Allow",
-        Action: ["codestar-connections:UseConnection"],
-        Resource: local.github_connection_arn
-      }
-    ]
-  })
+resource "aws_iam_role_policy_attachment" "codepipeline_inline" {
+  role       = aws_iam_role.codepipeline.id
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 ########################
